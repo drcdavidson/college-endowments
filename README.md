@@ -1,1 +1,1 @@
-# college-endowments
+# College Endowment Information
