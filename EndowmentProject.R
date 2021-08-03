@@ -32,4 +32,4 @@ Colleges$Highest_Degree[Colleges$Highest_Degree == 0]  <- "Non-degree granting"
 #Remove unneeded data
 rm(INST_Characteristics, INST_Characteristics_Values)
 
-glimpse(EnrollmentFTE)
+Colleges <- Colleges %>% left_join()
