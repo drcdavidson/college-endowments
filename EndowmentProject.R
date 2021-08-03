@@ -11,25 +11,48 @@ if(!require(rattle)) install.packages("rattle", repos = "http://cran.us.r-projec
 if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
 if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
 
+#Load Data Files
+EnrollmentFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentFASB.csv")
+EnrollmentGASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentGASB.csv")
+FTE <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/FTE.csv")
+GRAD <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/GraduationRate.csv")
+Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
+HighDegree <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegree.csv")
+HighDegreeValue <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegreeValues.csv")
+INST_Control <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Control.csv")
+INST_ControlValue <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_ControlValues.csv")
+Retention <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Retention.csv")
+Tuition <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Tuition.csv")
+INST_Level <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Level.csv")
+INST_LevelValues <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_LevelValue.csv")
+
+###################################################
 ## Clean Data and Combine Files into the Dataset ##
-Colleges <- INST_Characteristics %>% 
-  mutate(INST_Level="Four or more years")
+names(INST_Level) <- c("UnitID", "INST", "INST_Level_Code")
+names(INST_LevelValues) <- c("Variable", "INST_Level_Code", "INST_Level")
 
-Colleges$INST_Control[Colleges$INST_Control == 1] <- "Public"
-Colleges$INST_Control[Colleges$INST_Control == 2] <- "Private not-for-profit"
+Colleges <- INST_Level %>% left_join(INST_LevelValues, by = 'INST_Level_Code')   #Join INST Levels with Values
+Colleges <- select(Colleges, -3,-4)   #Remove unneeded columns
+rm(INST_Level, INST_LevelValues)  #Remove merged datasets 
 
-INST_Characteristics_Values <- INST_Characteristics_Values[-c(1:3),]
+#Add Public & Private Control to Colleges
+Colleges <- Colleges %>% mutate(Sector_Code = INST_Control$INST_Control)
+rm(INST_Control)
+names(INST_ControlValue) <- c("Variable","Sector_Code","Sector") #Rename Sectors
+Colleges <- Colleges %>% mutate(Sector_Code = INST_Control_Code) %>%      #Create Sector Codes
+  left_join(INST_ControlValue, by = 'Sector_Code')     #Join Sectors
+Colleges <- select(Colleges, -4,-5,-6)  #Remove unneeded columns
+rm(INST_ControlValue)
 
-Colleges$Highest_Degree[Colleges$Highest_Degree == 11] <- "Doctor's degree - research/scholarship and professional practice"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 12] <- "Doctor's degree - research/scholarship"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 13] <- "Doctor's degree -  professional practice"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 14] <- "Doctor's degree - other"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 20] <- "Master's degree"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 30] <- "Bachelor's degree"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 40] <- "Associate's degree"
-Colleges$Highest_Degree[Colleges$Highest_Degree == 0]  <- "Non-degree granting"
+#Add Highest Degree
+names(HighDegree) <- c("UnitID","INST","HighestDegree_Code")
+HighDegreeValue  <- select(HighDegreeValue,-1)      #Remove unneeded column 
+names(HighDegreeValue) <- c("HighestDegree_Code","HighestDegree")     #Rename Degrees
 
-#Remove unneeded data
-rm(INST_Characteristics, INST_Characteristics_Values)
+Colleges <- Colleges %>% mutate(HighestDegree_Code = HighDegree$HighestDegree_Code) %>%  #create column
+  left_join(HighDegreeValue, by = 'HighestDegree_Code')       #join highest degree codes
+Colleges <- select(Colleges, -5)      #remove columns
+rm(HighDegree, HighDegreeValue)     #remove unneded data
 
-Colleges <- Colleges %>% left_join()
+#Add Headcount
+
