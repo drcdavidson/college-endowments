@@ -1,15 +1,6 @@
 ## Install Libraries ##
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
-if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
-if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
-if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
-if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
-if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
-if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
-if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
-if(!require(rattle)) install.packages("rattle", repos = "http://cran.us.r-project.org")
-if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
-if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
 
 #Load Data Files
 EndowFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentFASB.csv")
@@ -203,17 +194,36 @@ EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2
 #Remove Data
 rm(EndowG)
 
+Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
+
 #Create Combined Endowment 
-Endowment <- EndowFASB
-Endowment <- Endowment %>% cbind("EndowmentG_ID"=EndowGASB$UnitID,
-                                 "EndowmentG_YR"=EndowGASB$Year,
-                                 "EndowmentG"=EndowGASB$EndowmentG)
-Endowment <- Endowment %>% mutate(
-  Endowment= if(UnitID=EndowmentG_ID && Year=EndowmentG_YR && is.na(EndowmentG))
-    {EndowmentF} else {EndowmentG})
-                                    
+Endowment <- Endowment %>% 
+  mutate(Endowment = ifelse(UnitID == EndowGASB$UnitID & Year == EndowGASB$Year & 
+                              is.na(EndowGASB$EndowmentG), EndowmentF, EndowGASB$EndowmentG))
+#Remove Unneeded Data
+rm(EndowFASB,EndowGASB)
 
+#Create Master Dataset for Analysis
+INST <- Endowment %>% select(1,2,5) %>%
+  mutate(Headcount = ifelse(UnitID == Headcount$UnitID & Year == Headcount$Year &
+                           is.na(Headcount$Headcount), NA, Headcount$Headcount),
+         FTE = ifelse(UnitID == FTE$UnitID & Year == FTE$Year & 
+                           is.na(FTE$FTE), NA, FTE$FTE),
+         Retention = ifelse(UnitID == Fall_Ret$UnitID & Year == Fall_Ret$Year &
+                           is.na(Fall_Ret$Retention), NA, Fall_Ret$Retention),
+         GradRate = ifelse(UnitID == GRAD$UnitID & UnitID == GRAD$Year &
+                           is.na(GRAD$GRAD), NA, GRAD$GRAD),
+         InState = ifelse(UnitID == InState$UnitID & Year == InState$Year & 
+                           is.na(InState$`In-State`), NA, InState$`In-State`),
+         OutState = ifelse(UnitID == OutState$UnitID & Year == OutState$Year &
+                             is.na(OutState$`Out-of-State`), NA, OutState$`Out-of-State`))
+         
+INST <- INST %>% left_join(Colleges, by = 'UnitID')                              
 
-  
-  
-  =IF(AND(A2=D2,B2=E2,C2="NA"),F2,C2)
+# Remove unneeded data
+rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
+
+# Reorder Columns & Rename FINAL DataSet
+Colleges <- INST[,c(1,10:13,2,3:9)]
+rm(INST)
+
