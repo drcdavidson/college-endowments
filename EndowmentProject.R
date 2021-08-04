@@ -227,3 +227,6 @@ rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
 Colleges <- INST[,c(1,10:13,2,3:9)]
 rm(INST)
 
+#Write Final Dataset to CSV
+write.csv(Colleges, "C:/Users/cdavi/OneDrive/Desktop/Documents/R_Projects/college-endowments/Colleges.csv", row.names=FALSE)
+
