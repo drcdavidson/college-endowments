@@ -1,14 +1,20 @@
-"names.Colleges."
-"UnitID"
-"INST"
-"INST_Level"
-"Sector"
-"HighestDegree"
-"Year"
-"Endowment"
-"Headcount"
-"FTE"
-"Retention"
-"GradRate"
-"InState"
-"OutState"
+Variable,Definition
+UnitID,Identification number used by the U.S. Department of Education's Office of Postsecondary Education (OPE) to identify schools that have Program Participation Agreements (PPA) so that its students are eligible to participate in Federal Student Financial Assistance programs under Title IV regulations. 
+INST,Institution (entity) name.
+INST_Level,"A classification of whether an institution’s programs are 4-year or higher (4 year), 2-but-less-than 4-year (2 year), or less than 2-year."
+Sector,A classification of whether an institution is operated by publicly elected or appointed officials or by privately elected or appointed officials and derives its major source of funds from private sources.
+HighestDegree,A code for highest degree offered at the institution.
+Year,The academic and fiscal year selected for a particular variable. 
+Endowment,"Value of endowment assets at the end of the fiscal year. Endowment Assests consists of gross investments of endowment funds, term endowment funds, and funds functioning as endowment for the institution and any of its foundations and other affiliated organizations."
+Headcount,"The unduplicated count of how many total students (undergraduate, graduate, and first-professional) were enrolled during the 12-month period selected. The unduplicated count includes all students enrolled for credit."
+FTE,The full time equivalent enrollment for the academic year.
+Retention,Percentage of students from the Full-time fall cohort that were enrolled in the prior year.
+GradRate,"The ratio of the number of students from the bachelor's degree-seeking cohort, who completed a bachelor's degree within 150 percent of normal time (6-years) divided by the adjusted cohort."
+InState,"The price of attendance for full-time, first-time undergraduate students for the Full Academic Year that includes: Tuition and fees, books and supplies, room and board, and other expenses are those amounts used by your financial aid office for determining eligibility for student financial assistance. In-State Tuition is the tuition charged by institutions to those students who meet the state's or institution's residency requirements.
+
+
+"
+OutState,"The price of attendance for full-time, first-time undergraduate students for the Full Academic Year that includes: Tuition and fees, books and supplies, room and board, and other expenses are those amounts used by your financial aid office for determining eligibility for student financial assistance. Out-of-State Tuition is the tuition charged by institutions to those students who do not meet the institution's or state's residency requirements
+
+
+"
