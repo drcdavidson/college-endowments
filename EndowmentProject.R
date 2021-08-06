@@ -1,11 +1,15 @@
 ## Install Libraries ##
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(flextable)) install.packages("flextable", repos = "http://cran.us.r-project.org")
+if(!require(gtsummary)) install.packages("gtsummary", repos = "http://cran.us.r-project.org")
+if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
+
+
 if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
 if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
 if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
-if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
 if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
 if(!require(rattle)) install.packages("rattle", repos = "http://cran.us.r-project.org")
 if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
@@ -26,6 +30,7 @@ Tuition_In <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-en
 Tuition_Out <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Out-of-State_Tuition.csv")
 INST_Level <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Level.csv")
 INST_LevelValues <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_LevelValue.csv")
+Variables <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Variables.csv")
 
 ###################################################
 ## Clean Data and Combine Files into the Dataset ##
@@ -236,9 +241,85 @@ rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
 Colleges <- INST[,c(1,10:13,2,3:9)]
 rm(INST)
 
-#Write Final Dataset to CSV
-write.csv(Colleges, "C:/Users/cdavi/OneDrive/Desktop/Documents/R_Projects/college-endowments/Colleges.csv", row.names=FALSE)
+######################################################################
+#Create data.frame with variables and definitions
+flextable(Variables) %>% 
+  set_table_properties(width = .75, layout = "autofit") %>%
+  theme_zebra()
 
-#######################################################################
+# Descriptives of College Dataset
+Continuous <- c("Endowment","Headcount","FTE","Retention","GradRate","InState","OutState") 
 
+t1 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{mean} ({sd})"),
+              missing = "no") %>%
+  add_n() %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Mean (SD)**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t2 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL,
+              statistic = list(all_continuous() ~ "{min}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Minimum**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t3 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{max}"),
+              missing = "no") %>%
+ modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Maximum**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t4 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{median}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Median**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+t5 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{p25}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**IQR Lower**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+t6 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{p75}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**IQR Upper**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+Col_Desc <- tbl_merge(list(t1, t2, t3, t4,t5,t6)) %>% 
+  modify_spanning_header(list(n_1 ~ NA,
+    all_stat_cols() ~ NA)) 
+
+# Remove Unneeded Values & Tables
+rm(Continuous,t1,t2,t3,t4,t5,t6)
+
+#Export to Flextable
+College_Desc <- as_flex_table(Col_Desc, include = everything(), return_calls = FALSE,
+  strip_md_bold = TRUE) 
+
+College_Desc %>%
+  set_table_properties(width = .75, layout = "autofit") %>%
+  theme_vanilla()
+
+# theme_tron_legacy()# Remove Uneeded Table
+rm(Col_Desc)
 

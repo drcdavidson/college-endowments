@@ -2,29 +2,365 @@
 title: "Examination of College Endowments"
 author: "Christopher T. Davidson, Ph.D."
 date: "August 4, 2021"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
 ---
+# Introduction
+TALK OF ENDOWMENts
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+## The Integrated Postsecondary Education Data System  Data 
+The Department of Education collects data annually through a series of interrelated surveys that all institutions--college, university, technical, and vocational--that participate in federal Title IV financial aid programs established by the Higher Education Act of 1965. Annually, more than 7,500 institutions ranging from research universities, state colleges, private religious and liberal arts institutions, for-profit schools, community and technical colleges, and non-degree-granting institutions complete the surveys for [Integrated Postsecondary Education Data System](https://nces.ed.gov/ipeds/) (IPEDS). 
+
+Data collected from institutions include information in eight areas: 
+
+* Institutional Characteristics;
+* Institutional Prices;
+* Admissions;
+* Enrollment;
+* Student Financial Aid;
+* Degrees and Certificates Conferred; 
+* Student Persistence and Success; and,
+* Academic Libraries, Institutional, and Human Fiscal Resources.
+
+## Purpose Statement 
+As one of the definitive sources for information about postsecondary education in the United States, IPEDS is used by Congress, federal and state government agencies, education leaders and researchers, private businesses, and the media for various purposes. The purpose of this project was to examine trends in four-year college endowments at public and private institutions. Additionally, I sought to develop and train a series of machine learning algorithms to predict college endowment values reported in IPEDS while maximizing the accuracy of the algorithm.
+
+The Root Mean Square Error (RMSE) served as the value to evaluate the accuracy of each model. The RMSE is a standard way to measure the error between predicted and true values in a model. A smaller RMSE is interpreted as the model being more accurate than a larger RMSE.^[Rafael A. Irizarry. (2020). Introduction to Data Science: Data Analysis and Prediction Algorithms with R (1st ed.). Taylor & Francis Group.] 
+
+This report provides a description of the methods used to download and clean the data, dataset using descriptive statistics, the methods to conduct an initial exploratory data analysis of the training subset of data before creating a series of machine learning algorithms. The report will then provide the results and offer a discussion of the analysis before providing concluding remarks. 
+
+# Methods & Analysis
+
+## College Endowment Dataset from IPEDS 
+The data for this analysis came from IPEDS. The code to build the college dataset was written to merge 14 separate data files to create the College Graduation Dataset that included 10-years of data to account for any anomalies in the data. The 15th file provides the definitions of the variables in the dataset. Once the files were merged, any cases that had at least one null value for any variable were removed from the dataset. After removing cases with null values, eighty percent of the dataset was split into the training dataset used for tuning and 20% split into a test dataset. The code also removed unneeded files from the working directory and environment. Table 1 describes the variables in the dataset.
+
+```{r Create Dataset, echo=FALSE, message=FALSE, warning=FALSE}
+## Install Libraries ##
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(flextable)) install.packages("flextable", repos = "http://cran.us.r-project.org")
+if(!require(gtsummary)) install.packages("gtsummary", repos = "http://cran.us.r-project.org")
+if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
+
+
+if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
+if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
+if(!require(rattle)) install.packages("rattle", repos = "http://cran.us.r-project.org")
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
+if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
+
+#Load Data Files
+EndowFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentFASB.csv")
+EndowGASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentGASB.csv")
+FTE <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/FTE.csv")
+GRAD <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/GraduationRate.csv")
+Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
+HighDegree <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegree.csv")
+HighDegreeValue <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegreeValues.csv")
+INST_Control <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Control.csv")
+INST_ControlValue <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_ControlValues.csv")
+Retention <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Retention.csv")
+Tuition_In <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/In-State_Tuition.csv")
+Tuition_Out <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Out-of-State_Tuition.csv")
+INST_Level <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Level.csv")
+INST_LevelValues <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_LevelValue.csv")
+Variables <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Variables.csv")
+
+###################################################
+## Clean Data and Combine Files into the Dataset ##
+names(INST_Level) <- c("UnitID", "INST", "INST_Level_Code")
+names(INST_LevelValues) <- c("Variable", "INST_Level_Code", "INST_Level")
+
+Colleges <- INST_Level %>% left_join(INST_LevelValues, by = 'INST_Level_Code')   #Join INST Levels with Values
+Colleges <- select(Colleges, -3,-4)   #Remove unneeded columns
+rm(INST_Level, INST_LevelValues)  #Remove merged datasets 
+
+##Add Public & Private Control to Colleges
+Colleges <- Colleges %>% mutate(Sector_Code = INST_Control$INST_Control)
+rm(INST_Control)
+names(INST_ControlValue) <- c("Variable","Sector_Code","Sector") #Rename Sectors
+Colleges <- Colleges %>% left_join(INST_ControlValue, by = 'Sector_Code')     #Join Sectors
+Colleges <- select(Colleges, -4,-5)  #Remove unneeded columns
+rm(INST_ControlValue)
+
+##Add Highest Degree
+names(HighDegree) <- c("UnitID","INST","HighestDegree_Code")
+HighDegreeValue  <- select(HighDegreeValue,-1)      #Remove unneeded column 
+names(HighDegreeValue) <- c("HighestDegree_Code","HighestDegree")     #Rename Degrees
+
+Colleges <- Colleges %>% mutate(HighestDegree_Code = HighDegree$HighestDegree_Code) %>%  #create column
+  left_join(HighDegreeValue, by = 'HighestDegree_Code')       #join highest degree codes
+Colleges <- select(Colleges, -5)      #remove columns
+rm(HighDegree, HighDegreeValue)     #remove unneeded data
+
+##Clean In-State Tuition
+names(Tuition_In) <- c("UnitID", "InstName", 2020:2011) #rename columns 
+InState <- Tuition_In %>% select(UnitID) %>% mutate(Year = 2020, "In" = Tuition_In$`2020`)   #create subset of rates
+
+#Bind rows into a tidy format 
+InState <- bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID,"Year" = 2019,"In" = Tuition_In$`2019`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2018, "In" = Tuition_In$`2018`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2017, "In" = Tuition_In$`2017`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2016, "In" = Tuition_In$`2016`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2015, "In" = Tuition_In$`2015`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2014, "In" = Tuition_In$`2014`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2013, "In" = Tuition_In$`2013`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2012, "In" = Tuition_In$`2012`)) %>%
+  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2011, "In" = Tuition_In$`2011`))
+
+#Rename column
+names(InState)[3]<-"In-State"
+
+#Remove Data
+rm(Tuition_In)
+
+##Clean Out-of-State Tuition
+names(Tuition_Out) <- c("UnitID", "InstName", 2020:2011) #rename columns 
+OutState <- Tuition_Out %>% select(UnitID) %>% mutate(Year = 2020, "Out" = Tuition_Out$`2020`)   #create subset of rates
+
+#Bind rows into a tidy format 
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID,"Year" = 2019,"Out" = Tuition_Out$`2019`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2018, "Out" = Tuition_Out$`2018`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2017, "Out" = Tuition_Out$`2017`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2016, "Out" = Tuition_Out$`2016`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2015, "Out" = Tuition_Out$`2015`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2014, "Out" = Tuition_Out$`2014`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2013, "Out" = Tuition_Out$`2013`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2012, "Out" = Tuition_Out$`2012`)) %>%
+  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2011, "Out" = Tuition_Out$`2011`))
+
+#Rename column
+names(OutState)[3]<-"Out-of-State"
+
+#Remove Data
+rm(Tuition_Out)
+
+##Clean Retention
+names(Retention) <- c("UnitID", 2019:2010)
+Fall_Ret <- Retention %>% select(UnitID) %>% mutate(Year = 2019, Retention = Retention$`2019`)  #create subset of rates
+
+#Bind rows into a tidy format 
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2018,"Retention" = Retention$`2018`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2017,"Retention" = Retention$`2017`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2016,"Retention" = Retention$`2016`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2015,"Retention" = Retention$`2015`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2014,"Retention" = Retention$`2014`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2013,"Retention" = Retention$`2013`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2012,"Retention" = Retention$`2012`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2011,"Retention" = Retention$`2011`)) %>%
+  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2010,"Retention" = Retention$`2010`))
+
+#Remove Data
+rm(Retention)
+  
+## Clean Headcount
+names(Headcount) <- c("UnitID", 2020:2011)
+Undup <- Headcount
+Headcount <- Undup %>% select(UnitID) %>% mutate(Year=2020, Headcount = Undup$`2020`) #create subset of rates
+
+#Bind rows into a tidy format 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2019,"Headcount" = Undup$`2019`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2018,"Headcount" = Undup$`2018`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2017,"Headcount" = Undup$`2017`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2016,"Headcount" = Undup$`2016`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2015,"Headcount" = Undup$`2015`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2014,"Headcount" = Undup$`2014`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2013,"Headcount" = Undup$`2013`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2012,"Headcount" = Undup$`2012`)) %>%
+  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2011,"Headcount" = Undup$`2011`))
+#Remove Data
+rm(Undup)
+
+##Clean FTE
+names(FTE) <- c("UnitID","Name",2020:2011)
+FullTimeE <- FTE
+FTE <- FullTimeE %>% select(UnitID) %>% mutate(Year=2020, FTE=FullTimeE$`2020`)     #create subset of rates
+
+#Bind rows into a tidy format 
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2019,"FTE" = FullTimeE$`2019`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2018,"FTE" = FullTimeE$`2018`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2017,"FTE" = FullTimeE$`2017`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2016,"FTE" = FullTimeE$`2016`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2015,"FTE" = FullTimeE$`2015`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2014,"FTE" = FullTimeE$`2014`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2013,"FTE" = FullTimeE$`2013`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2012,"FTE" = FullTimeE$`2012`)) %>%
+  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2011,"FTE" = FullTimeE$`2011`))
+#Remove Data
+rm(FullTimeE)
+
+## Clean Grad
+Graduate <- GRAD
+names(Graduate) <- c("UnitID", 2019:2010)
+GRAD <- Graduate %>% select(UnitID) %>% mutate(Year=2019, GRAD=Graduate$`2019`)   #create subset of rates
+
+#Bind rows into a tidy format
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2018,"GRAD" = Graduate$`2018`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2017,"GRAD" = Graduate$`2017`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2016,"GRAD" = Graduate$`2016`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2015,"GRAD" = Graduate$`2015`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2014,"GRAD" = Graduate$`2014`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2013,"GRAD" = Graduate$`2013`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2012,"GRAD" = Graduate$`2012`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2011,"GRAD" = Graduate$`2011`)) %>%
+  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2010,"GRAD" = Graduate$`2010`))
+#Remove Data
+rm(Graduate)
+
+## Clean EndowFASB
+EndowF <- EndowFASB
+names(EndowF) <- c("UnitID", 2019:2010)
+EndowFASB <- EndowF %>% select(UnitID) %>% mutate(Year=2019, EndowmentF = EndowF$`2019`) #create subset of rates
+
+#Bind rows into a tidy format
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2018,"EndowmentF" = EndowF$`2018`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2017,"EndowmentF" = EndowF$`2017`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2016,"EndowmentF" = EndowF$`2016`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2015,"EndowmentF" = EndowF$`2015`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2014,"EndowmentF" = EndowF$`2014`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2013,"EndowmentF" = EndowF$`2013`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2012,"EndowmentF" = EndowF$`2012`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2011,"EndowmentF" = EndowF$`2011`)) %>%
+  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2010,"EndowmentF" = EndowF$`2010`))
+#Remove Data
+rm(EndowF)
+
+## Clean EndowGASB
+EndowG <- EndowGASB
+names(EndowG) <- c("UnitID", 2019:2010)
+EndowGASB <- EndowG %>% select(UnitID) %>% mutate(Year=2019, EndowmentG = EndowG$`2019`) #create subset of rates
+
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2018,"EndowmentG" = EndowG$`2018`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2017,"EndowmentG" = EndowG$`2017`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2016,"EndowmentG" = EndowG$`2016`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2015,"EndowmentG" = EndowG$`2015`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2014,"EndowmentG" = EndowG$`2014`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2013,"EndowmentG" = EndowG$`2013`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2012,"EndowmentG" = EndowG$`2012`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2011,"EndowmentG" = EndowG$`2011`)) %>%
+  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2010,"EndowmentG" = EndowG$`2010`))
+#Remove Data
+rm(EndowG)
+
+Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
+
+#Create Combined Endowment 
+Endowment <- Endowment %>% 
+  mutate(Endowment = ifelse(UnitID == EndowGASB$UnitID & Year == EndowGASB$Year & 
+                              is.na(EndowGASB$EndowmentG), EndowmentF, EndowGASB$EndowmentG))
+#Remove Unneeded Data
+rm(EndowFASB,EndowGASB)
+
+#Create Master Dataset for Analysis
+INST <- Endowment %>% select(1,2,5) %>%
+  mutate(Headcount = ifelse(UnitID == Headcount$UnitID & Year == Headcount$Year &
+                           is.na(Headcount$Headcount), NA, Headcount$Headcount),
+         FTE = ifelse(UnitID == FTE$UnitID & Year == FTE$Year & 
+                           is.na(FTE$FTE), NA, FTE$FTE),
+         Retention = ifelse(UnitID == Fall_Ret$UnitID & Year == Fall_Ret$Year &
+                           is.na(Fall_Ret$Retention), NA, Fall_Ret$Retention),
+         GradRate = ifelse(UnitID == GRAD$UnitID & UnitID == GRAD$Year &
+                           is.na(GRAD$GRAD), NA, GRAD$GRAD),
+         InState = ifelse(UnitID == InState$UnitID & Year == InState$Year & 
+                           is.na(InState$`In-State`), NA, InState$`In-State`),
+         OutState = ifelse(UnitID == OutState$UnitID & Year == OutState$Year &
+                             is.na(OutState$`Out-of-State`), NA, OutState$`Out-of-State`))
+         
+INST <- INST %>% left_join(Colleges, by = 'UnitID')                              
+
+# Remove unneeded data
+rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
+
+# Reorder Columns & Rename FINAL DataSet
+Colleges <- INST[,c(1,10:13,2,3:9)]
+rm(INST)
+
+######################################################################
+#Create data.frame with variables and definitions
+flextable(Variables) %>% 
+  set_table_properties(layout = "autofit") %>%
+  theme_zebra()
+
+# Descriptives of College Dataset
+Continuous <- c("Endowment","Headcount","FTE","Retention","GradRate","InState","OutState") 
+
+t1 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{mean} ({sd})"),
+              missing = "no") %>%
+  add_n() %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Mean (SD)**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t2 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL,
+              statistic = list(all_continuous() ~ "{min}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Minimum**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t3 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{max}"),
+              missing = "no") %>%
+ modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Maximum**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+t4 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{median}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**Median**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+t5 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{p25}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**IQR Lower**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+t6 <- Colleges %>%
+  select(Continuous) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_continuous() ~ "{p75}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**IQR Upper**")) %>%
+  modify_footnote(list(stat_0 ~ NA)) 
+
+Col_Desc <- tbl_merge(list(t1, t2, t3, t4,t5,t6)) %>% 
+  modify_spanning_header(list(n_1 ~ NA,
+    all_stat_cols() ~ NA)) 
+
+# Remove Unneeded Values & Tables
+rm(Continuous,t1,t2,t3,t4,t5,t6)
+
+#Export to Flextable
+College_Desc <- as_flex_table(Col_Desc, include = everything(), return_calls = FALSE,
+  strip_md_bold = TRUE) 
+
+College_Desc %>%
+  set_table_properties(layout = "autofit") %>%
+  theme_vanilla()
+
+# theme_tron_legacy()# Remove Uneeded Table
+rm(Col_Desc)
 ```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
