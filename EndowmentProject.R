@@ -18,7 +18,7 @@ EndowFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-end
 EndowGASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentGASB.csv")
 FTE <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/FTE.csv")
 GRAD <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/GraduationRate.csv")
-Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
+U_Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
 HighDegree <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegree.csv")
 HighDegreeValue <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/HighestDegreeValues.csv")
 INST_Control <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Control.csv")
@@ -44,149 +44,49 @@ Colleges <- select(Colleges, -3,-4)   #Remove unneeded columns
 rm(INST_Level, INST_LevelValues)  #Remove merged datasets 
 
 ##Add Public & Private Control to Colleges
-Colleges <- Colleges %>% mutate(Sector_Code = INST_Control$INST_Control)
-rm(INST_Control)
-names(INST_ControlValue) <- c("Variable","Sector_Code","Sector") #Rename Sectors
-Colleges <- Colleges %>% left_join(INST_ControlValue, by = 'Sector_Code')     #Join Sectors
-Colleges <- select(Colleges, -4,-5)  #Remove unneeded columns
-rm(INST_ControlValue)
+names(INST_ControlValue) <- c("Variable","INST_Control","Sector") #edit column names for join
+INST_Control <- INST_Control %>% left_join(INST_ControlValue, by = 'INST_Control') #join tables
+rm(INST_ControlValue) #remove data table
+Colleges <- Colleges %>% left_join(INST_Control, by = 'UnitID') #add sectors to Colleges table
+Colleges <- Colleges[-c(5:6)]  # remove unneeded columns
+rm(INST_Control)  #remove table
 
 ##Add Highest Degree
-names(HighDegree) <- c("UnitID","INST","HighestDegree_Code")
-HighDegreeValue  <- select(HighDegreeValue,-1)      #Remove unneeded column 
-names(HighDegreeValue) <- c("HighestDegree_Code","HighestDegree")     #Rename Degrees
-
-Colleges <- Colleges %>% mutate(HighestDegree_Code = HighDegree$HighestDegree_Code) %>%  #create column
-  left_join(HighDegreeValue, by = 'HighestDegree_Code')       #join highest degree codes
-Colleges <- select(Colleges, -5)      #remove columns
-rm(HighDegree, HighDegreeValue)     #remove unneeded data
+names(HighDegreeValue) <- c("Variable","HighestDegree","Highest_Degree")
+HighDegree <- HighDegree %>% left_join(HighDegreeValue, by = 'HighestDegree')
+rm(HighDegreeValue)
+Colleges <- Colleges %>% left_join(HighDegree, by ='UnitID')
+Colleges <- Colleges[-c(4,6:8)]
+rm(HighDegree)
 
 ##Add INSTsize
-Colleges <- Colleges %>% mutate(INST_Size_Value = INSTsize$INST_Size_Value) 
-Colleges <- Colleges%>% left_join(INSTsizeLabels, by = "INST_Size_Value")
+INSTsize <- INSTsize %>% left_join(INSTsizeLabels, by = 'INST_Size_Value')
+rm(INSTsizeLabels)
+Colleges <- Colleges %>% left_join(INSTsize, by = 'UnitID')
 Colleges <- Colleges[-6]
-rm(INSTsize, INSTsizeLabels)
+rm(INSTsize)
 
 ##Add StateAbbr
-Colleges <- Colleges %>% mutate(StateAbbr = StateAbbr$State_Abbr)
-names(StateAbbrLabels)[1] <- "StateAbbr"
-Colleges <- Colleges %>% left_join(StateAbbrLabels, by = "StateAbbr")
+Colleges <- Colleges %>% left_join(StateAbbr, by = 'UnitID') %>%
+  left_join(StateAbbrLabels, by = 'State_Abbr')
 Colleges <- Colleges[-7]
 rm(StateAbbr, StateAbbrLabels)
 
-##Clean In-State Tuition
-names(Tuition_In) <- c("UnitID", "InstName", 2020:2011) #rename columns 
-InState <- Tuition_In %>% select(UnitID) %>% mutate(Year = 2020, "In" = Tuition_In$`2020`)   #create subset of rates
+##########
+## Clean EndowGASB
+EndowG <- EndowGASB
+names(EndowG) <- c("UnitID", 2019:2010)
+EndowGASB <- EndowG %>% select(UnitID) %>% mutate(Year=2019, EndowmentG = EndowG$`2019`) #create subset of rates
 
-#Bind rows into a tidy format 
-InState <- bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID,"Year" = 2019,"In" = Tuition_In$`2019`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2018, "In" = Tuition_In$`2018`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2017, "In" = Tuition_In$`2017`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2016, "In" = Tuition_In$`2016`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2015, "In" = Tuition_In$`2015`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2014, "In" = Tuition_In$`2014`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2013, "In" = Tuition_In$`2013`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2012, "In" = Tuition_In$`2012`)) %>%
-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2011, "In" = Tuition_In$`2011`))
-
-#Rename column
-names(InState)[3]<-"In-State"
-
-#Remove Data
-rm(Tuition_In)
-
-##Clean Out-of-State Tuition
-names(Tuition_Out) <- c("UnitID", "InstName", 2020:2011) #rename columns 
-OutState <- Tuition_Out %>% select(UnitID) %>% mutate(Year = 2020, "Out" = Tuition_Out$`2020`)   #create subset of rates
-
-#Bind rows into a tidy format 
-OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID,"Year" = 2019,"Out" = Tuition_Out$`2019`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2018, "Out" = Tuition_Out$`2018`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2017, "Out" = Tuition_Out$`2017`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2016, "Out" = Tuition_Out$`2016`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2015, "Out" = Tuition_Out$`2015`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2014, "Out" = Tuition_Out$`2014`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2013, "Out" = Tuition_Out$`2013`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2012, "Out" = Tuition_Out$`2012`)) %>%
-  bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2011, "Out" = Tuition_Out$`2011`))
-
-#Rename column
-names(OutState)[3]<-"Out-of-State"
-
-#Remove Data
-rm(Tuition_Out)
-
-##Clean Retention
-names(Retention) <- c("UnitID", 2019:2010)
-Fall_Ret <- Retention %>% select(UnitID) %>% mutate(Year = 2019, Retention = Retention$`2019`)  #create subset of rates
-
-#Bind rows into a tidy format 
-Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2018,"Retention" = Retention$`2018`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2017,"Retention" = Retention$`2017`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2016,"Retention" = Retention$`2016`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2015,"Retention" = Retention$`2015`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2014,"Retention" = Retention$`2014`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2013,"Retention" = Retention$`2013`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2012,"Retention" = Retention$`2012`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2011,"Retention" = Retention$`2011`)) %>%
-  bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2010,"Retention" = Retention$`2010`))
-
-#Remove Data
-rm(Retention)
-  
-## Clean Headcount
-names(Headcount) <- c("UnitID", 2020:2011)
-Undup <- Headcount
-Headcount <- Undup %>% select(UnitID) %>% mutate(Year=2020, Headcount = Undup$`2020`) #create subset of rates
-
-#Bind rows into a tidy format 
-Headcount <- bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2019,"Headcount" = Undup$`2019`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2018,"Headcount" = Undup$`2018`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2017,"Headcount" = Undup$`2017`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2016,"Headcount" = Undup$`2016`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2015,"Headcount" = Undup$`2015`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2014,"Headcount" = Undup$`2014`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2013,"Headcount" = Undup$`2013`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2012,"Headcount" = Undup$`2012`)) %>%
-  bind_rows(Headcount, data.frame("UnitID" = Undup$UnitID,"Year" = 2011,"Headcount" = Undup$`2011`))
-#Remove Data
-rm(Undup)
-
-##Clean FTE
-names(FTE) <- c("UnitID","Name",2020:2011)
-FullTimeE <- FTE
-FTE <- FullTimeE %>% select(UnitID) %>% mutate(Year=2020, FTE=FullTimeE$`2020`)     #create subset of rates
-
-#Bind rows into a tidy format 
-FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2019,"FTE" = FullTimeE$`2019`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2018,"FTE" = FullTimeE$`2018`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2017,"FTE" = FullTimeE$`2017`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2016,"FTE" = FullTimeE$`2016`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2015,"FTE" = FullTimeE$`2015`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2014,"FTE" = FullTimeE$`2014`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2013,"FTE" = FullTimeE$`2013`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2012,"FTE" = FullTimeE$`2012`)) %>%
-  bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2011,"FTE" = FullTimeE$`2011`))
-#Remove Data
-rm(FullTimeE)
-
-## Clean Grad
-Graduate <- GRAD
-names(Graduate) <- c("UnitID", 2019:2010)
-GRAD <- Graduate %>% select(UnitID) %>% mutate(Year=2019, GRAD=Graduate$`2019`)   #create subset of rates
-
-#Bind rows into a tidy format
-GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2018,"GRAD" = Graduate$`2018`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2017,"GRAD" = Graduate$`2017`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2016,"GRAD" = Graduate$`2016`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2015,"GRAD" = Graduate$`2015`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2014,"GRAD" = Graduate$`2014`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2013,"GRAD" = Graduate$`2013`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2012,"GRAD" = Graduate$`2012`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2011,"GRAD" = Graduate$`2011`)) %>%
-  bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2010,"GRAD" = Graduate$`2010`))
-#Remove Data
-rm(Graduate)
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2018,"EndowmentG" = EndowG$`2018`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2017,"EndowmentG" = EndowG$`2017`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2016,"EndowmentG" = EndowG$`2016`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2015,"EndowmentG" = EndowG$`2015`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2014,"EndowmentG" = EndowG$`2014`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2013,"EndowmentG" = EndowG$`2013`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2012,"EndowmentG" = EndowG$`2012`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2011,"EndowmentG" = EndowG$`2011`))
+EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2010,"EndowmentG" = EndowG$`2010`))
 
 ## Clean EndowFASB
 EndowF <- EndowFASB
@@ -194,34 +94,18 @@ names(EndowF) <- c("UnitID", 2019:2010)
 EndowFASB <- EndowF %>% select(UnitID) %>% mutate(Year=2019, EndowmentF = EndowF$`2019`) #create subset of rates
 
 #Bind rows into a tidy format
-EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2018,"EndowmentF" = EndowF$`2018`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2017,"EndowmentF" = EndowF$`2017`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2016,"EndowmentF" = EndowF$`2016`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2015,"EndowmentF" = EndowF$`2015`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2014,"EndowmentF" = EndowF$`2014`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2013,"EndowmentF" = EndowF$`2013`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2012,"EndowmentF" = EndowF$`2012`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2011,"EndowmentF" = EndowF$`2011`)) %>%
-  bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2010,"EndowmentF" = EndowF$`2010`))
-#Remove Data
-rm(EndowF)
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2018,"EndowmentF" = EndowF$`2018`))
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2017,"EndowmentF" = EndowF$`2017`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2016,"EndowmentF" = EndowF$`2016`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2015,"EndowmentF" = EndowF$`2015`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2014,"EndowmentF" = EndowF$`2014`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2013,"EndowmentF" = EndowF$`2013`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2012,"EndowmentF" = EndowF$`2012`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2011,"EndowmentF" = EndowF$`2011`)) 
+EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2010,"EndowmentF" = EndowF$`2010`))
 
-## Clean EndowGASB
-EndowG <- EndowGASB
-names(EndowG) <- c("UnitID", 2019:2010)
-EndowGASB <- EndowG %>% select(UnitID) %>% mutate(Year=2019, EndowmentG = EndowG$`2019`) #create subset of rates
-
-EndowGASB <- bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2018,"EndowmentG" = EndowG$`2018`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2017,"EndowmentG" = EndowG$`2017`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2016,"EndowmentG" = EndowG$`2016`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2015,"EndowmentG" = EndowG$`2015`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2014,"EndowmentG" = EndowG$`2014`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2013,"EndowmentG" = EndowG$`2013`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2012,"EndowmentG" = EndowG$`2012`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2011,"EndowmentG" = EndowG$`2011`)) %>%
-  bind_rows(EndowGASB, data.frame("UnitID" = EndowG$UnitID,"Year" = 2010,"EndowmentG" = EndowG$`2010`))
 #Remove Data
-rm(EndowG)
+rm(EndowF, EndowG)
 
 Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
 
@@ -229,32 +113,165 @@ Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
 Endowment <- Endowment %>% 
   mutate(Endowment = ifelse(UnitID == EndowGASB$UnitID & Year == EndowGASB$Year & 
                               is.na(EndowGASB$EndowmentG), EndowmentF, EndowGASB$EndowmentG))
+
 #Remove Unneeded Data
 rm(EndowFASB,EndowGASB)
+Endowment <- Endowment[-c(3:4)]
 
-#Create Master Dataset for Analysis
-INST <- Endowment %>% select(1,2,5) %>%
-  mutate(Headcount = ifelse(UnitID == Headcount$UnitID & Year == Headcount$Year &
-                           is.na(Headcount$Headcount), NA, Headcount$Headcount),
-         FTE = ifelse(UnitID == FTE$UnitID & Year == FTE$Year & 
-                           is.na(FTE$FTE), NA, FTE$FTE),
-         Retention = ifelse(UnitID == Fall_Ret$UnitID & Year == Fall_Ret$Year &
-                           is.na(Fall_Ret$Retention), NA, Fall_Ret$Retention),
-         GradRate = ifelse(UnitID == GRAD$UnitID & UnitID == GRAD$Year &
-                           is.na(GRAD$GRAD), NA, GRAD$GRAD),
-         InState = ifelse(UnitID == InState$UnitID & Year == InState$Year & 
-                           is.na(InState$`In-State`), NA, InState$`In-State`),
-         OutState = ifelse(UnitID == OutState$UnitID & Year == OutState$Year &
-                             is.na(OutState$`Out-of-State`), NA, OutState$`Out-of-State`))
-         
-INST <- INST %>% left_join(Colleges, by = 'UnitID')                              
+#Add Endowment to Colleges & Remove unneeded data file
+Colleges <- Colleges %>% right_join(Endowment, by = 'UnitID')
+rm(Endowment)
 
-# Remove unneeded data
-rm(Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
+##########
+##Clean In-State Tuition
+names(Tuition_In) <- c("UnitID", "InstName", 2020:2011) #rename columns 
+InState <- Tuition_In %>% select(UnitID) %>% mutate(Year = 2020, "In" = Tuition_In$`2020`)   #create subset of rates
+
+#Bind rows into a tidy format 
+InState <- bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID,"Year" = 2019,"In" = Tuition_In$`2019`))
+InState <- bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2018, "In" = Tuition_In$`2018`)) 
+InState <- bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2017, "In" = Tuition_In$`2017`)) 
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2016, "In" = Tuition_In$`2016`)) 
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2015, "In" = Tuition_In$`2015`))
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2014, "In" = Tuition_In$`2014`)) 
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2013, "In" = Tuition_In$`2013`))
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2012, "In" = Tuition_In$`2012`)) 
+InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2011, "In" = Tuition_In$`2011`))
+
+#Rename column
+names(InState)[3]<-"In-State"
+
+#Remove Data
+rm(Tuition_In)
+
+#Add to Colleges Dataset
+Colleges <- left_join(Colleges,InState,by=c('UnitID','Year'))
+
+#Remove unneeded data file
+rm(InState)
+
+##########
+##Clean Out-of-State Tuition
+names(Tuition_Out) <- c("UnitID", "InstName", 2020:2011) #rename columns 
+OutState <- Tuition_Out %>% select(UnitID) %>% mutate(Year = 2020, "Out" = Tuition_Out$`2020`)   #create subset of rates
+
+#Bind rows into a tidy format 
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2019, "Out" = Tuition_Out$`2019`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2018, "Out" = Tuition_Out$`2018`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2017, "Out" = Tuition_Out$`2017`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2016, "Out" = Tuition_Out$`2016`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2015, "Out" = Tuition_Out$`2015`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2014, "Out" = Tuition_Out$`2014`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2013, "Out" = Tuition_Out$`2013`))
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2012, "Out" = Tuition_Out$`2012`)) 
+OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2011, "Out" = Tuition_Out$`2011`))
+
+#Rename column
+names(OutState)[3]<-"Out-of-State"
+
+#Remove Data
+rm(Tuition_Out)
+
+#Add to Colleges Data
+Colleges <- Colleges %>% left_join(OutState, by = c('UnitID','Year'))
+rm(OutState)
+
+###############
+##Clean Retention
+names(Retention) <- c("UnitID", 2019:2010)
+Fall_Ret <- Retention %>% select(UnitID) %>% mutate(Year = 2019, Retention = Retention$`2019`)  #create subset of rates
+
+#Bind rows into a tidy format 
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2018,"Retention" = Retention$`2018`)) 
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2017,"Retention" = Retention$`2017`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2016,"Retention" = Retention$`2016`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2015,"Retention" = Retention$`2015`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2014,"Retention" = Retention$`2014`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2013,"Retention" = Retention$`2013`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2012,"Retention" = Retention$`2012`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2011,"Retention" = Retention$`2011`))
+Fall_Ret <- bind_rows(Fall_Ret, data.frame("UnitID" = Retention$UnitID,"Year" = 2010,"Retention" = Retention$`2010`))
+
+#Remove Data
+rm(Retention)
+
+#Add to Colleges Data & Remove data file
+Colleges <- Colleges %>% left_join(Fall_Ret, by = c('UnitID','Year'))
+rm(Fall_Ret)
+
+########## 
+## Clean Headcount
+names(U_Headcount) <- c("UnitID", 2019:2010)
+Headcount <- U_Headcount %>% select(UnitID) %>% mutate(Year=2019, Headcount = U_Headcount$`2019`) #create subset of rates
+
+#Bind rows into a tidy format 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2018,"Headcount" = U_Headcount$`2018`))
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2017,"Headcount" = U_Headcount$`2017`))
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2016,"Headcount" = U_Headcount$`2016`)) 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2015,"Headcount" = U_Headcount$`2015`)) 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2014,"Headcount" = U_Headcount$`2014`)) 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2013,"Headcount" = U_Headcount$`2013`)) 
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2012,"Headcount" = U_Headcount$`2012`))
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2011,"Headcount" = U_Headcount$`2011`))
+Headcount <- bind_rows(Headcount, data.frame("UnitID" = U_Headcount$UnitID,"Year" = 2010,"Headcount" = U_Headcount$`2010`))
+
+#Remove Data
+rm(U_Headcount)
+
+#Add to Colleges Data & Remove data file
+Colleges <- Colleges %>% left_join(Headcount, by = c('UnitID','Year'))
+rm(Headcount)
+
+###############
+##Clean FTE
+names(FTE) <- c("UnitID","Name",2019:2010)
+FullTimeE <- FTE
+FTE <- FullTimeE %>% select(UnitID) %>% mutate(Year=2019, FTE=FullTimeE$`2019`)     #create subset of rates
+
+#Bind rows into a tidy format 
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2018,"FTE" = FullTimeE$`2018`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2017,"FTE" = FullTimeE$`2017`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2016,"FTE" = FullTimeE$`2016`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2015,"FTE" = FullTimeE$`2015`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2014,"FTE" = FullTimeE$`2014`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2013,"FTE" = FullTimeE$`2013`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2012,"FTE" = FullTimeE$`2012`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2011,"FTE" = FullTimeE$`2011`))
+FTE <- bind_rows(FTE, data.frame("UnitID" = FullTimeE$UnitID,"Year" = 2010,"FTE" = FullTimeE$`2010`))
+  
+#Remove Data
+rm(FullTimeE)
+
+#Add to Colleges Data & Remove data file
+Colleges <- Colleges %>% left_join(FTE, by = c('UnitID','Year'))
+rm(FTE)
+
+###############
+## Clean Grad
+Graduate <- GRAD
+names(Graduate) <- c("UnitID", 2019:2010)
+GRAD <- Graduate %>% select(UnitID) %>% mutate(Year=2019, GRAD=Graduate$`2019`)   #create subset of rates
+
+#Bind rows into a tidy format
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2018,"GRAD" = Graduate$`2018`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2017,"GRAD" = Graduate$`2017`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2016,"GRAD" = Graduate$`2016`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2015,"GRAD" = Graduate$`2015`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2014,"GRAD" = Graduate$`2014`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2013,"GRAD" = Graduate$`2013`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2012,"GRAD" = Graduate$`2012`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2011,"GRAD" = Graduate$`2011`)) 
+GRAD <- bind_rows(GRAD, data.frame("UnitID" = Graduate$UnitID,"Year" = 2010,"GRAD" = Graduate$`2010`))
+
+#Remove Data
+rm(Graduate)
+
+#Add to Colleges Data & Remove data file
+Colleges <- Colleges %>% left_join(GRAD, by = c('UnitID','Year'))
+rm(GRAD)
 
 # Reorder Columns & Rename FINAL DataSet
-Colleges <- INST[,c(1,10:15,2:9)]
-rm(INST)
+Colleges <- Colleges[,c(1:5,7,6,8:15)]
 
 #Remove cases with at least one null value
 Colleges <- Colleges[complete.cases(Colleges),]
@@ -264,6 +281,10 @@ Colleges <- Colleges[complete.cases(Colleges),]
 flextable(Variables) %>% 
   set_table_properties(width = .75, layout = "autofit") %>%
   set_caption(caption = " IPEDS Definitions for Variables") %>%
+  footnote(i=1, j=2, 
+           value= as_paragraph("Some definitions were modified for gramatical purposes."),
+           ref_symbols = "a",
+           part = "header") %>%
   theme_vanilla()
 
 ## Descriptives of College Dataset
@@ -361,3 +382,6 @@ College_Desc <- College_Desc %>%
 rm(Col_Desc)
 
 ######################################################################
+#Top 10 Endowments 
+FinalYr <- filter(Colleges, Year == 2019)
+Top <- arrange(FinalYr,desc(Endowment)) %>% select(INST, Sector, Endowment)
