@@ -3,13 +3,10 @@ title: "Examination of College Endowments"
 author: "Christopher T. Davidson, Ph.D."
 date: "August 4, 2021"
 output:
-  html_document:
-    df_print: paged
   word_document: default
-  pdf_document: default
 ---
 # Introduction
-TALK OF ENDOWMENts
+TALK OF Endowments
 
 
 ## The Integrated Postsecondary Education Data System  Data 
@@ -31,12 +28,12 @@ As one of the definitive sources for information about postsecondary education i
 
 The Root Mean Square Error (RMSE) served as the value to evaluate the accuracy of each model. The RMSE is a standard way to measure the error between predicted and true values in a model. A smaller RMSE is interpreted as the model being more accurate than a larger RMSE.^[Rafael A. Irizarry. (2020). Introduction to Data Science: Data Analysis and Prediction Algorithms with R (1st ed.). Taylor & Francis Group.] 
 
-This report provides a description of the methods used to download and clean the data, dataset using descriptive statistics, the methods to conduct an initial exploratory data analysis of the training subset of data before creating a series of machine learning algorithms. The report will then provide the results and offer a discussion of the analysis before providing concluding remarks. 
+This report provides a description of the methods used to download and clean the data, data set using descriptive statistics, the methods to conduct an initial exploratory data analysis of the training subset of data before creating a series of machine learning algorithms. The report will then provide the results and offer a discussion of the analysis before providing concluding remarks. 
 
 # Methods & Analysis
 
 ## College Endowment Dataset from IPEDS 
-The data for this analysis came from IPEDS. The code to build the college dataset was written to merge 14 separate data files to create the College Graduation Dataset that included 10-years of data to account for any anomalies in the data. The 15th file provides the definitions of the variables in the dataset. Once the files were merged, any cases that had at least one null value for any variable were removed from the dataset. After removing cases with null values, eighty percent of the dataset was split into the training dataset used for tuning and 20% split into a test dataset. The code also removed unneeded files from the working directory and environment. Table 1 describes the variables in the dataset.
+The data for this analysis came from IPEDS. The code to build the college data set was written to merge 14 separate data files to create the College Graduation Data set that included 10-years of data to account for any anomalies in the data. The 15th file provides the definitions of the variables in the data set. 
 
 ```{r Create Dataset, echo=FALSE, message=FALSE, warning=FALSE}
 ## Install Libraries ##
@@ -282,10 +279,15 @@ rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
 Colleges <- INST[,c(1,10:13,2,3:9)]
 rm(INST)
 
+```
+
+Once the files were merged, any cases that had at least one null value for any variable were removed from the data set. After removing cases with null values, eighty percent of the data set was split into the training data set used for tuning and 20% split into a test data set. The code also removed unneeded files from the working directory and environment. Table 1 describes the variables in the data set.
+
+```{r Create Tables showing Variables & Descriptives, echo=FALSE, message=FALSE, warning=FALSE}
 ######################################################################
 #Create data.frame with variables and definitions
 flextable(Variables) %>% 
-  set_table_properties(layout = "autofit") %>%
+  set_table_properties(width = .75, layout = "autofit") %>%
   theme_zebra()
 
 # Descriptives of College Dataset
@@ -358,9 +360,12 @@ College_Desc <- as_flex_table(Col_Desc, include = everything(), return_calls = F
   strip_md_bold = TRUE) 
 
 College_Desc %>%
-  set_table_properties(layout = "autofit") %>%
+  set_table_properties(width = .75, layout = "autofit") %>%
   theme_vanilla()
 
 # theme_tron_legacy()# Remove Uneeded Table
 rm(Col_Desc)
+
 ```
+
+
