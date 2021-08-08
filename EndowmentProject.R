@@ -3,8 +3,6 @@ if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-
 if(!require(flextable)) install.packages("flextable", repos = "http://cran.us.r-project.org")
 if(!require(gtsummary)) install.packages("gtsummary", repos = "http://cran.us.r-project.org")
 if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
-
-
 if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
@@ -30,6 +28,10 @@ Tuition_In <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-en
 Tuition_Out <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Out-of-State_Tuition.csv")
 INST_Level <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Level.csv")
 INST_LevelValues <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_LevelValue.csv")
+StateAbbr <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/StateAbbr.csv")
+StateAbbrLabels <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/StateAbbrValues.csv")
+INSTsize <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Size.csv")
+INSTsizeLabels<- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_SizeValues.csv")
 Variables <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Variables.csv")
 
 ###################################################
@@ -58,6 +60,19 @@ Colleges <- Colleges %>% mutate(HighestDegree_Code = HighDegree$HighestDegree_Co
   left_join(HighDegreeValue, by = 'HighestDegree_Code')       #join highest degree codes
 Colleges <- select(Colleges, -5)      #remove columns
 rm(HighDegree, HighDegreeValue)     #remove unneeded data
+
+##Add INSTsize
+Colleges <- Colleges %>% mutate(INST_Size_Value = INSTsize$INST_Size_Value) 
+Colleges <- Colleges%>% left_join(INSTsizeLabels, by = "INST_Size_Value")
+Colleges <- Colleges[-6]
+rm(INSTsize, INSTsizeLabels)
+
+##Add StateAbbr
+Colleges <- Colleges %>% mutate(StateAbbr = StateAbbr$State_Abbr)
+names(StateAbbrLabels)[1] <- "StateAbbr"
+Colleges <- Colleges %>% left_join(StateAbbrLabels, by = "StateAbbr")
+Colleges <- Colleges[-7]
+rm(StateAbbr, StateAbbrLabels)
 
 ##Clean In-State Tuition
 names(Tuition_In) <- c("UnitID", "InstName", 2020:2011) #rename columns 
@@ -235,19 +250,49 @@ INST <- Endowment %>% select(1,2,5) %>%
 INST <- INST %>% left_join(Colleges, by = 'UnitID')                              
 
 # Remove unneeded data
-rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
+rm(Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
 
 # Reorder Columns & Rename FINAL DataSet
-Colleges <- INST[,c(1,10:13,2,3:9)]
+Colleges <- INST[,c(1,10:15,2:9)]
 rm(INST)
+
+#Remove cases with at least one null value
+Colleges <- Colleges[complete.cases(Colleges),]
 
 ######################################################################
 #Create data.frame with variables and definitions
 flextable(Variables) %>% 
   set_table_properties(width = .75, layout = "autofit") %>%
-  theme_zebra()
+  set_caption(caption = " IPEDS Definitions for Variables") %>%
+  theme_vanilla()
 
-# Descriptives of College Dataset
+## Descriptives of College Dataset
+#Categorical Variables 
+Categorical <- c("INST_Level","Sector","HighestDegree")
+
+t1 <- Colleges %>%
+  select(Categorical) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_categorical() ~ "{n}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**N**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+#Export to Flextable
+College_Categ <- as_flex_table(t1, include = everything(), return_calls = FALSE,
+                              strip_md_bold = TRUE) 
+
+College_Categ %>%
+  set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Frequencies for Categorical Variables") %>%
+  theme_vanilla()
+
+#Remove unneeded table
+rm(t1, Categorical)
+
+################
+# Continuous Variables
 Continuous <- c("Endowment","Headcount","FTE","Retention","GradRate","InState","OutState") 
 
 t1 <- Colleges %>%
@@ -255,9 +300,7 @@ t1 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{mean} ({sd})"),
               missing = "no") %>%
-  add_n() %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Mean (SD)**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Mean (SD)**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t2 <- Colleges %>%
@@ -265,8 +308,7 @@ t2 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL,
               statistic = list(all_continuous() ~ "{min}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Minimum**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Minimum**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t3 <- Colleges %>%
@@ -274,8 +316,7 @@ t3 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{max}"),
               missing = "no") %>%
- modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Maximum**")) %>%
+  modify_header(list(label ~ "**Variable**", stat_0 ~ "**Maximum**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t4 <- Colleges %>%
@@ -283,8 +324,7 @@ t4 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{median}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Median**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Median**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t5 <- Colleges %>%
@@ -292,34 +332,32 @@ t5 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p25}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**IQR Lower**")) %>%
+  modify_header(list(label ~ "**Variable**", stat_0 ~ "**IQR Lower**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t6 <- Colleges %>%
   select(Continuous) %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p75}"),
-              missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**IQR Upper**")) %>%
+              missing = "no") %>% 
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**IQR Upper**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
-Col_Desc <- tbl_merge(list(t1, t2, t3, t4,t5,t6)) %>% 
-  modify_spanning_header(list(n_1 ~ NA,
-    all_stat_cols() ~ NA)) 
+Col_Desc <- tbl_merge(list(t1,t2,t3,t4,t5,t6)) %>%
+  modify_spanning_header(everything() ~ NA_character_)
 
 # Remove Unneeded Values & Tables
 rm(Continuous,t1,t2,t3,t4,t5,t6)
 
 #Export to Flextable
-College_Desc <- as_flex_table(Col_Desc, include = everything(), return_calls = FALSE,
-  strip_md_bold = TRUE) 
-
-College_Desc %>%
-  set_table_properties(width = .75, layout = "autofit") %>%
+College_Desc <- as_flex_table(Col_Desc, include = everything() , return_calls = FALSE,
+                              strip_md_bold = TRUE)
+College_Desc <- College_Desc %>%
+  set_table_properties(width = 1, layout = "autofit") %>%
+  set_caption(caption = " Descriptive Statistics for Continuous Variables") %>%
   theme_vanilla()
 
-# theme_tron_legacy()# Remove Uneeded Table
+# Remove Uneeded Table
 rm(Col_Desc)
 
+######################################################################

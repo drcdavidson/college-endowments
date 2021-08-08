@@ -33,16 +33,14 @@ This report provides a description of the methods used to download and clean the
 # Methods & Analysis
 
 ## College Endowment Dataset from IPEDS 
-The data for this analysis came from IPEDS. The code to build the college data set was written to merge 14 separate data files to create the College Graduation Data set that included 10-years of data to account for any anomalies in the data. The 15th file provides the definitions of the variables in the data set. 
+The data for this analysis came from IPEDS. The code to build the college data set was written to merge 18 separate data files to create the College Graduation Data set that included 10-years of data to account for any anomalies in the data. The 19th file provides the definitions of the variables in the data set. Once the files were merged, there were 44,622 observations. Any cases that had at least one null value for any variable were removed from the data set. The final number of observations in the data set was 27,732. Table 1 provides the definitions of the variables in the data. Table 2 
 
-```{r Create Dataset, echo=FALSE, message=FALSE, warning=FALSE}
+```{r Create Tables showing Variables, echo=FALSE, message=FALSE, warning=FALSE}
 ## Install Libraries ##
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(flextable)) install.packages("flextable", repos = "http://cran.us.r-project.org")
 if(!require(gtsummary)) install.packages("gtsummary", repos = "http://cran.us.r-project.org")
 if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
-
-
 if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
@@ -68,6 +66,10 @@ Tuition_In <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-en
 Tuition_Out <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Out-of-State_Tuition.csv")
 INST_Level <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Level.csv")
 INST_LevelValues <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_LevelValue.csv")
+StateAbbr <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/StateAbbr.csv")
+StateAbbrLabels <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/StateAbbrValues.csv")
+INSTsize <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_Size.csv")
+INSTsizeLabels<- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/INST_SizeValues.csv")
 Variables <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Variables.csv")
 
 ###################################################
@@ -96,6 +98,19 @@ Colleges <- Colleges %>% mutate(HighestDegree_Code = HighDegree$HighestDegree_Co
   left_join(HighDegreeValue, by = 'HighestDegree_Code')       #join highest degree codes
 Colleges <- select(Colleges, -5)      #remove columns
 rm(HighDegree, HighDegreeValue)     #remove unneeded data
+
+##Add INSTsize
+Colleges <- Colleges %>% mutate(INST_Size_Value = INSTsize$INST_Size_Value) 
+Colleges <- Colleges%>% left_join(INSTsizeLabels, by = "INST_Size_Value")
+Colleges <- Colleges[-6]
+rm(INSTsize, INSTsizeLabels)
+
+##Add StateAbbr
+Colleges <- Colleges %>% mutate(StateAbbr = StateAbbr$State_Abbr)
+names(StateAbbrLabels)[1] <- "StateAbbr"
+Colleges <- Colleges %>% left_join(StateAbbrLabels, by = "StateAbbr")
+Colleges <- Colleges[-7]
+rm(StateAbbr, StateAbbrLabels)
 
 ##Clean In-State Tuition
 names(Tuition_In) <- c("UnitID", "InstName", 2020:2011) #rename columns 
@@ -276,21 +291,55 @@ INST <- INST %>% left_join(Colleges, by = 'UnitID')
 rm(Colleges, Endowment, Fall_Ret, FTE, GRAD, Headcount, InState, OutState)
 
 # Reorder Columns & Rename FINAL DataSet
-Colleges <- INST[,c(1,10:13,2,3:9)]
+Colleges <- INST[,c(1,10:15,2,3:9)]
 rm(INST)
 
-```
+#Remove cases with at least one null value
+Colleges <- Colleges[complete.cases(Colleges),]
 
-Once the files were merged, any cases that had at least one null value for any variable were removed from the data set. After removing cases with null values, eighty percent of the data set was split into the training data set used for tuning and 20% split into a test data set. The code also removed unneeded files from the working directory and environment. Table 1 describes the variables in the data set.
-
-```{r Create Tables showing Variables & Descriptives, echo=FALSE, message=FALSE, warning=FALSE}
 ######################################################################
 #Create data.frame with variables and definitions
 flextable(Variables) %>% 
-  set_table_properties(width = .75, layout = "autofit") %>%
-  theme_zebra()
+  set_table_properties(width = 1, layout = "autofit") %>%
+  set_caption(caption = " IPEDS Definitions for Variables") %>%
+  theme_vanilla()
 
-# Descriptives of College Dataset
+```
+
+DESCRIPTION OF CATEGORICAL Variables 
+
+```{r Create Table for Categorical Variables, echo=FALSE, message=FALSE}
+## Descriptives of College Dataset
+#Categorical Variables 
+Categorical <- c("INST_Level","Sector","HighestDegree")
+
+t1 <- Colleges %>%
+  select(Categorical) %>%
+  tbl_summary(by = NULL, label = NULL, 
+              statistic = list(all_categorical() ~ "{n}"),
+              missing = "no") %>%
+  modify_header(list(label ~ "**Variable**",
+                     stat_0 ~ "**N**")) %>%
+  modify_footnote(list(stat_0 ~ NA))
+
+#Export to Flextable
+College_Categ <- as_flex_table(t1, include = everything(), return_calls = FALSE,
+                              strip_md_bold = TRUE) 
+
+College_Categ %>%
+  set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Frequencies for Categorical Variables") %>%
+  theme_vanilla()
+
+#Remove unneeded table
+rm(t1, Categorical)
+```
+
+DESCRIPTION OF CONTINUOUS VARIABLES 
+
+```{r Create Table for Continuous Variables, echo=FALSE, message=FALSE}
+################
+# Continuous Variables
 Continuous <- c("Endowment","Headcount","FTE","Retention","GradRate","InState","OutState") 
 
 t1 <- Colleges %>%
@@ -298,9 +347,7 @@ t1 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{mean} ({sd})"),
               missing = "no") %>%
-  add_n() %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Mean (SD)**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Mean (SD)**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t2 <- Colleges %>%
@@ -308,8 +355,7 @@ t2 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL,
               statistic = list(all_continuous() ~ "{min}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Minimum**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Minimum**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t3 <- Colleges %>%
@@ -317,8 +363,7 @@ t3 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{max}"),
               missing = "no") %>%
- modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Maximum**")) %>%
+  modify_header(list(label ~ "**Variable**", stat_0 ~ "**Maximum**")) %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t4 <- Colleges %>%
@@ -326,8 +371,7 @@ t4 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{median}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**Median**")) %>%
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**Median**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t5 <- Colleges %>%
@@ -335,37 +379,33 @@ t5 <- Colleges %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p25}"),
               missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**IQR Lower**")) %>%
+  modify_header(list(label ~ "**Variable**", stat_0 ~ "**IQR Lower**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t6 <- Colleges %>%
   select(Continuous) %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p75}"),
-              missing = "no") %>%
-  modify_header(list(label ~ "**Variable**",
-                     stat_0 ~ "**IQR Upper**")) %>%
+              missing = "no") %>% 
+  modify_header(list(label ~ "**Variable**",stat_0 ~ "**IQR Upper**")) %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
-Col_Desc <- tbl_merge(list(t1, t2, t3, t4,t5,t6)) %>% 
-  modify_spanning_header(list(n_1 ~ NA,
-    all_stat_cols() ~ NA)) 
+Col_Desc <- tbl_merge(list(t1,t2,t3,t4,t5,t6)) %>%
+  modify_spanning_header(everything() ~ NA_character_)
 
 # Remove Unneeded Values & Tables
 rm(Continuous,t1,t2,t3,t4,t5,t6)
 
 #Export to Flextable
-College_Desc <- as_flex_table(Col_Desc, include = everything(), return_calls = FALSE,
-  strip_md_bold = TRUE) 
-
+College_Desc <- as_flex_table(Col_Desc, include = everything() , return_calls = FALSE,
+                              strip_md_bold = TRUE)
 College_Desc %>%
   set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Descriptive Statistics for Continuous Variables") %>%
   theme_vanilla()
 
-# theme_tron_legacy()# Remove Uneeded Table
+# Remove Uneeded Table
 rm(Col_Desc)
-
 ```
 
-
+After removing cases with null values, eighty percent of the data set was split into the training data set used for tuning and 20% split into a test data set. The code also removed unneeded files from the working directory and environment.
