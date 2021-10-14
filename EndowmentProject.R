@@ -3,19 +3,13 @@ if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-
 if(!require(flextable)) install.packages("flextable", repos = "http://cran.us.r-project.org")
 if(!require(gtsummary)) install.packages("gtsummary", repos = "http://cran.us.r-project.org")
 if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
-if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org")
-if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
-if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
-if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
-if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
-if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
-if(!require(rattle)) install.packages("rattle", repos = "http://cran.us.r-project.org")
-if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
-if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
+if(!require(formattable)) install.packages("formattable", repos = "http://cran.us.r-project.org")
+if(!require(gt)) install.packages("gt", repos = "http://cran.us.r-project.org")
 
 #Load Data Files
 EndowFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentFASB.csv")
 EndowGASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentGASB.csv")
+
 FTE <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/FTE.csv")
 GRAD <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/GraduationRate.csv")
 U_Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
@@ -139,7 +133,7 @@ InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" =
 InState <-  bind_rows(InState, data.frame("UnitID" = Tuition_In$UnitID, "Year" = 2011, "In" = Tuition_In$`2011`))
 
 #Rename column
-names(InState)[3]<-"In-State"
+names(InState)[3]<-"InState"
 
 #Remove Data
 rm(Tuition_In)
@@ -167,7 +161,7 @@ OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year"
 OutState <- bind_rows(OutState, data.frame("UnitID" = Tuition_Out$UnitID, "Year" = 2011, "Out" = Tuition_Out$`2011`))
 
 #Rename column
-names(OutState)[3]<-"Out-of-State"
+names(OutState)[3]<-"OutState"
 
 #Remove Data
 rm(Tuition_Out)
@@ -276,7 +270,7 @@ Colleges <- Colleges[,c(1:5,7,6,8:15)]
 #Remove cases with at least one null value
 Colleges <- Colleges[complete.cases(Colleges),]
 
-######################################################################
+#####################################################################
 #Create data.frame with variables and definitions
 flextable(Variables) %>% 
   set_table_properties(width = .75, layout = "autofit") %>%
@@ -287,12 +281,11 @@ flextable(Variables) %>%
            part = "header") %>%
   theme_vanilla()
 
+#####################################################################
 ## Descriptives of College Dataset
 #Categorical Variables 
-Categorical <- c("INST_Level","Sector","HighestDegree")
-
 t1 <- Colleges %>%
-  select(Categorical) %>%
+  select("INST_Level","Sector","Highest_Degree","INST_Size") %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_categorical() ~ "{n}"),
               missing = "no") %>%
@@ -310,14 +303,12 @@ College_Categ %>%
   theme_vanilla()
 
 #Remove unneeded table
-rm(t1, Categorical)
+rm(t1)
 
 ################
 # Continuous Variables
-Continuous <- c("Endowment","Headcount","FTE","Retention","GradRate","InState","OutState") 
-
 t1 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD") %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{mean} ({sd})"),
               missing = "no") %>%
@@ -325,7 +316,7 @@ t1 <- Colleges %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t2 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD")  %>%
   tbl_summary(by = NULL, label = NULL,
               statistic = list(all_continuous() ~ "{min}"),
               missing = "no") %>%
@@ -333,7 +324,7 @@ t2 <- Colleges %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t3 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD")  %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{max}"),
               missing = "no") %>%
@@ -341,7 +332,7 @@ t3 <- Colleges %>%
   modify_footnote(list(stat_0 ~ NA))
 
 t4 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD")  %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{median}"),
               missing = "no") %>%
@@ -349,7 +340,7 @@ t4 <- Colleges %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t5 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD") %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p25}"),
               missing = "no") %>%
@@ -357,7 +348,7 @@ t5 <- Colleges %>%
   modify_footnote(list(stat_0 ~ NA)) 
 
 t6 <- Colleges %>%
-  select(Continuous) %>%
+  select("Endowment","InState","OutState","Retention","Headcount","FTE","GRAD")  %>%
   tbl_summary(by = NULL, label = NULL, 
               statistic = list(all_continuous() ~ "{p75}"),
               missing = "no") %>% 
@@ -368,7 +359,7 @@ Col_Desc <- tbl_merge(list(t1,t2,t3,t4,t5,t6)) %>%
   modify_spanning_header(everything() ~ NA_character_)
 
 # Remove Unneeded Values & Tables
-rm(Continuous,t1,t2,t3,t4,t5,t6)
+rm(t1,t2,t3,t4,t5,t6)
 
 #Export to Flextable
 College_Desc <- as_flex_table(Col_Desc, include = everything() , return_calls = FALSE,
@@ -383,5 +374,46 @@ rm(Col_Desc)
 
 ######################################################################
 #Top 10 Endowments 
+#Subset data into one year 
 FinalYr <- filter(Colleges, Year == 2019)
-Top <- arrange(FinalYr,desc(Endowment)) %>% select(INST, Sector, Endowment)
+
+#Arrange data from largest to smallest Endowment
+Top <- arrange(FinalYr,desc(Endowment)) %>% select(INST, Sector, Endowment) 
+
+#Get Top 10 Endowments
+Top10 <- head(Top,10)
+
+#Convert Endowment to currency 
+Top10 <- gt(Top10)
+Top10 <- fmt_currency(Top10, "Endowment", currency = "USD",sep_mark = ",") %>%
+  as.data.frame()
+
+#Final Table for presentation
+flextable(Top10) %>% 
+  set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Top 10 Highest Endowments - All Institutions") %>%
+  theme_vanilla()
+
+#Get Top 10 Private Endowments 
+Top10_Pri <- Top %>% filter(Sector == 'Private not-for-profit')
+Top10_Pri <- head(Top10_Pri,10)
+Top10_Pri <- gt(Top10_Pri)
+Top10_Pri <- fmt_currency(Top10_Pri, "Endowment", currency = "USD",sep_mark = ",") %>%
+  as.data.frame()
+
+flextable(Top10_Pri) %>% 
+  set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Top 10 Highest Endowments - Private Non-for-Profit Institutions") %>%
+  theme_vanilla()
+
+#Get Top 10 Public Endowments 
+Top10_Pub <- Top %>% filter(Sector == 'Public')
+Top10_Pub <- head(Top10_Pub,10)
+Top10_Pub <- gt(Top10_Pub)
+Top10_Pub <- fmt_currency(Top10_Pub, "Endowment", currency = "USD",sep_mark = ",") %>%
+  as.data.frame()
+
+flextable(Top10_Pub) %>% 
+  set_table_properties(width = .75, layout = "autofit") %>%
+  set_caption(caption = " Top 10 Highest Endowments - Public Institutions") %>%
+  theme_vanilla()
