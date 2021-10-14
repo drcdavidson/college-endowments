@@ -9,7 +9,7 @@ if(!require(gt)) install.packages("gt", repos = "http://cran.us.r-project.org")
 #Load Data Files
 EndowFASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentFASB.csv")
 EndowGASB <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/EndowmentGASB.csv")
-
+Endow2020 <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/2020EndowmentsPrelim.csv")
 FTE <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/FTE.csv")
 GRAD <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/GraduationRate.csv")
 U_Headcount <- read.csv("https://raw.githubusercontent.com/drcdavidson/college-endowments/main/IPEDS_Data/Headcount.csv")
@@ -98,19 +98,30 @@ EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2
 EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2011,"EndowmentF" = EndowF$`2011`)) 
 EndowFASB <- bind_rows(EndowFASB, data.frame("UnitID" = EndowF$UnitID,"Year" = 2010,"EndowmentF" = EndowF$`2010`))
 
+#Clean Endow2020
+Endow2020 <- Endow2020 %>% 
+  mutate(Endowment = ifelse(unitid == Endow2020$unitid & year == Endow2020$year &
+                              is.na(Endow2020$F1920_F2.Value.of.endowment.assets.at.the.end.of.the.fiscal.year),
+                                    Endow2020$F1920_F1A.Value.of.endowment.assets.at.the.end.of.the.fiscal.year, 
+                                    Endow2020$F1920_F2.Value.of.endowment.assets.at.the.end.of.the.fiscal.year))
+Endow2020 <- Endow2020[-c(2,4,5)]
+names(Endow2020) <- c("UnitID","Year","Endowment")
+
 #Remove Data
 rm(EndowF, EndowG)
 
-Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
-
 #Create Combined Endowment 
+Endowment <- EndowFASB %>% cbind("EndowmentG" = EndowGASB$EndowmentG)
 Endowment <- Endowment %>% 
   mutate(Endowment = ifelse(UnitID == EndowGASB$UnitID & Year == EndowGASB$Year & 
                               is.na(EndowGASB$EndowmentG), EndowmentF, EndowGASB$EndowmentG))
+Endowment <- Endowment[-c(3,4)]
 
+Endowment <- Endowment %>%
+  bind_rows(Endow2020, data.frame("UnitID" = Endow2020$UnitID, "Year" = 2020, "Endowment" = Endow2020$Endowment))
+                                    
 #Remove Unneeded Data
-rm(EndowFASB,EndowGASB)
-Endowment <- Endowment[-c(3:4)]
+rm(EndowFASB,EndowGASB, Endow2020)
 
 #Add Endowment to Colleges & Remove unneeded data file
 Colleges <- Colleges %>% right_join(Endowment, by = 'UnitID')
@@ -417,3 +428,4 @@ flextable(Top10_Pub) %>%
   set_table_properties(width = .75, layout = "autofit") %>%
   set_caption(caption = " Top 10 Highest Endowments - Public Institutions") %>%
   theme_vanilla()
+
