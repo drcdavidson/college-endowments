@@ -429,3 +429,5 @@ flextable(Top10_Pub) %>%
   set_caption(caption = " Top 10 Highest Endowments - Public Institutions") %>%
   theme_vanilla()
 
+#WriteCSV
+write.csv(Colleges,"/Users/cdavi/OneDrive/Desktop/Documents/R_Projects/college-endowments/CollegeEndowments.csv", row.names = FALSE)
